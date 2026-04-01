@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SwiftSend — Beneficiaries</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <style>
+    .ben-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .ben-card { background: var(--white); border-radius: var(--radius-lg); padding: 20px; box-shadow: var(--shadow-sm); border: 1.5px solid var(--gray-2); transition: all 0.18s; }
+    .ben-card:hover { border-color: var(--green); box-shadow: var(--shadow-md); }
+    .ben-card-top { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .ben-card-avatar { width: 44px; height: 44px; border-radius: 12px; background: var(--green-light); color: var(--green); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; }
+    .ben-card-name { font-size: 15px; font-weight: 600; color: var(--text); }
+    .ben-card-bank { font-size: 12px; color: var(--gray-4); margin-top: 2px; }
+    .ben-card-info { font-size: 13px; color: var(--gray-4); margin-bottom: 14px; line-height: 1.8; }
+    .ben-card-info strong { color: var(--text); }
+    .ben-card-actions { display: flex; gap: 8px; }
+    .filter-tabs { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-tab { padding: 8px 18px; border-radius: 99px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1.5px solid var(--gray-2); background: var(--white); color: var(--gray-4); transition: all 0.15s; font-family: 'Lexend', sans-serif; }
+    .filter-tab.active { background: var(--green); color: white; border-color: var(--green); }
+    .verify-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; padding: 3px 8px; border-radius: 99px; }
+    .verify-badge.ok { background: var(--green-light); color: var(--green); }
+    .verify-badge.checking { background: var(--gray-1); color: var(--gray-4); }
+    .verify-badge.error { background: #FFF0F0; color: var(--red); }
+    #acct-name-preview { font-size: 13px; font-weight: 600; color: var(--green); min-height: 20px; margin-top: 6px; }
+  </style>
+</head>
+<body>
+  <div class="app-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-logo"><div class="sidebar-logo-icon">S</div><span class="sidebar-logo-name">SwiftSend</span></div>
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard</a>
+        <a href="transfer.html" class="nav-item"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>New Transfer</a>
+        <a href="beneficiaries.html" class="nav-item active"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Beneficiaries</a>
+        <a href="history.html" class="nav-item"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>History</a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-card"><div class="user-avatar" id="sidebar-avatar">U</div><div class="user-info"><div class="user-name" id="sidebar-name">User</div><div class="user-email" id="sidebar-email"></div></div></div>
+        <button onclick="logout()" class="btn btn-secondary btn-full btn-sm mt-8" style="justify-content:flex-start;gap:8px;"><svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>Sign out</button>
+      </div>
+    </aside>
+
+    <main class="main-content fade-in">
+      <div class="flex-between" style="margin-bottom:24px;flex-wrap:wrap;gap:12px;">
+        <div>
+          <div class="page-title">Beneficiaries</div>
+          <div class="page-subtitle">Saved bank accounts for quick transfers</div>
+        </div>
+        <button onclick="openAddModal()" class="btn btn-primary">+ Add Beneficiary</button>
+      </div>
+
+      <div class="filter-tabs">
+        <button class="filter-tab active" onclick="filterBens('all', this)">All</button>
+        <button class="filter-tab" onclick="filterBens('commercial', this)">Commercial Banks</button>
+        <button class="filter-tab" onclick="filterBens('microfinance', this)">Microfinance</button>
+      </div>
+
+      <div id="ben-grid" class="ben-grid"></div>
+      <div id="ben-empty" class="empty-state" style="display:none;padding:60px 20px;">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:56px;height:56px;margin:0 auto 16px;display:block;opacity:0.3;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        <p style="font-size:15px;font-weight:500;color:var(--text);margin-bottom:6px;">No beneficiaries yet</p>
+        <p style="font-size:13px;color:var(--gray-3);">Add a bank account to get started</p>
+        <button onclick="openAddModal()" class="btn btn-primary mt-16" style="margin-top:16px;">Add Beneficiary</button>
+      </div>
+    </main>
+  </div>
+
+  <nav class="mobile-nav"><div class="mobile-nav-inner">
+    <a href="dashboard.html" class="mobile-nav-item"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Home</a>
+    <a href="transfer.html" class="mobile-nav-item"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>Transfer</a>
+    <a href="beneficiaries.html" class="mobile-nav-item active"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Saved</a>
+    <a href="history.html" class="mobile-nav-item"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>History</a>
+  </div></nav>
+
+  <!-- Add Beneficiary Modal -->
+  <div class="modal-overlay" id="add-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Add Beneficiary</div>
+        <button class="modal-close" onclick="closeAddModal()">×</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:18px;">
+        <div class="form-group">
+          <label class="form-label">Bank Type</label>
+          <select class="form-select" id="ben-type">
+            <option value="commercial">Commercial Bank</option>
+            <option value="microfinance">Microfinance Bank</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bank Name</label>
+          <input type="text" class="form-input" id="ben-bank" placeholder="e.g. GTBank, Access, Lapo MFB" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Account Number</label>
+          <input type="text" class="form-input" id="ben-acct" placeholder="10-digit account number" maxlength="10" oninput="previewName()" />
+          <div id="acct-name-preview"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Account Name</label>
+          <input type="text" class="form-input" id="ben-name" placeholder="e.g. John Doe" />
+          <div class="form-hint">Enter the account holder's full name</div>
+        </div>
+        <div style="display:flex;gap:12px;margin-top:4px;">
+          <button onclick="closeAddModal()" class="btn btn-secondary" style="flex:1;">Cancel</button>
+          <button onclick="saveBeneficiary()" class="btn btn-primary" style="flex:2;">Save Beneficiary</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete confirm modal -->
+  <div class="modal-overlay" id="del-modal">
+    <div class="modal" style="max-width:360px;">
+      <div class="modal-header"><div class="modal-title">Remove Beneficiary</div><button class="modal-close" onclick="document.getElementById('del-modal').classList.remove('open')">×</button></div>
+      <p style="font-size:14px;color:var(--gray-4);margin-bottom:24px;">Are you sure you want to remove <strong id="del-name"></strong>? This cannot be undone.</p>
+      <div style="display:flex;gap:12px;">
+        <button onclick="document.getElementById('del-modal').classList.remove('open')" class="btn btn-secondary" style="flex:1;">Cancel</button>
+        <button onclick="confirmDelete()" class="btn btn-danger" style="flex:1;">Remove</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="js/utils.js"></script>
+  <script>
+    requireAuth(); initSidebar();
+    let currentFilter = 'all';
+    let deleteIndex = -1;
+
+    function renderBens(filter) {
+      const bens = getBeneficiaries();
+      const filtered = filter === 'all' ? bens : bens.filter(b => b.type === filter);
+      const grid = document.getElementById('ben-grid');
+      const empty = document.getElementById('ben-empty');
+
+      if (!filtered.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
+      const typeLabel = { commercial: 'Commercial', microfinance: 'Microfinance' };
+      const typeColor = { commercial: 'chip-success', microfinance: 'chip-pending' };
+      grid.innerHTML = bens.map((b, i) => {
+        if (filter !== 'all' && b.type !== filter) return '';
+        return `
+        <div class="ben-card fade-in">
+          <div class="ben-card-top">
+            <div class="ben-card-avatar">${b.accountName[0].toUpperCase()}</div>
+            <div>
+              <div class="ben-card-name">${b.accountName}</div>
+              <div class="ben-card-bank">${b.bankName}</div>
+            </div>
+          </div>
+          <div class="ben-card-info">
+            <div><strong>Account No:</strong> ${b.accountNumber}</div>
+            <div><strong>Type:</strong> <span class="chip ${typeColor[b.type]}" style="font-size:11px;padding:2px 8px;">${typeLabel[b.type]}</span></div>
+            <div><strong>Added:</strong> ${formatDate(b.addedAt)}</div>
+          </div>
+          <div class="ben-card-actions">
+            <a href="transfer.html" onclick="localStorage.setItem('ss_prefill_ben','${i}')" class="btn btn-outline btn-sm" style="flex:1;text-align:center;">Send Money</a>
+            <button onclick="openDeleteModal(${i})" class="btn btn-danger btn-sm">🗑</button>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function filterBens(f, el) {
+      currentFilter = f;
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      renderBens(f);
+    }
+
+    function openAddModal()  { document.getElementById('add-modal').classList.add('open'); }
+    function closeAddModal() { document.getElementById('add-modal').classList.remove('open'); clearAddForm(); }
+
+    function clearAddForm() {
+      ['ben-type','ben-bank','ben-acct','ben-name'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = el.tagName === 'SELECT' ? 'commercial' : '';
+      });
+      document.getElementById('acct-name-preview').textContent = '';
+    }
+
+    function previewName() {
+      const acct = document.getElementById('ben-acct').value;
+      const preview = document.getElementById('acct-name-preview');
+      if (acct.length === 10) {
+        preview.innerHTML = '<span class="verify-badge checking">⏳ Verifying account…</span>';
+        // In production, call Paystack verify-account API here
+        // For demo, simulate a resolution after 1s
+        setTimeout(() => {
+          preview.innerHTML = '<span class="verify-badge ok">✓ Account looks valid — enter the name below</span>';
+        }, 1000);
+      } else {
+        preview.textContent = '';
+      }
+    }
+
+    function saveBeneficiary() {
+      const type   = document.getElementById('ben-type').value;
+      const bank   = document.getElementById('ben-bank').value.trim();
+      const acct   = document.getElementById('ben-acct').value.trim();
+      const name   = document.getElementById('ben-name').value.trim();
+      if (!bank || !acct || !name) { showToast('Please fill all fields', 'error'); return; }
+      if (acct.length !== 10 || !/^\d+$/.test(acct)) { showToast('Account number must be 10 digits', 'error'); return; }
+      const bens = getBeneficiaries();
+      if (bens.find(b => b.accountNumber === acct)) { showToast('This account is already saved', 'error'); return; }
+      bens.push({ accountName: name, bankName: bank, accountNumber: acct, type, addedAt: new Date().toISOString() });
+      saveBeneficiaries(bens);
+      showToast('Beneficiary saved!', 'success');
+      closeAddModal();
+      renderBens(currentFilter);
+    }
+
+    function openDeleteModal(i) {
+      deleteIndex = i;
+      const b = getBeneficiaries()[i];
+      document.getElementById('del-name').textContent = b.accountName;
+      document.getElementById('del-modal').classList.add('open');
+    }
+
+    function confirmDelete() {
+      const bens = getBeneficiaries();
+      bens.splice(deleteIndex, 1);
+      saveBeneficiaries(bens);
+      document.getElementById('del-modal').classList.remove('open');
+      showToast('Beneficiary removed', 'default');
+      renderBens(currentFilter);
+    }
+
+    renderBens('all');
+  </script>
+</body>
+</html>

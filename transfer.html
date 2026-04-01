@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SwiftSend — New Transfer</title>
+  <link rel="stylesheet" href="css/style.css" />
+  <script src="https://js.paystack.co/v1/inline.js"></script>
+  <style>
+    .transfer-layout { display: grid; grid-template-columns: 1fr 380px; gap: 24px; align-items: start; }
+    @media (max-width: 900px) { .transfer-layout { grid-template-columns: 1fr; } }
+
+    /* Steps indicator */
+    .steps { display: flex; align-items: center; gap: 0; margin-bottom: 28px; }
+    .step { display: flex; align-items: center; gap: 8px; }
+    .step-num { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; flex-shrink: 0; background: var(--gray-2); color: var(--gray-4); transition: all 0.2s; }
+    .step.active .step-num, .step.done .step-num { background: var(--green); color: white; }
+    .step-label { font-size: 13px; font-weight: 500; color: var(--gray-4); }
+    .step.active .step-label { color: var(--text); }
+    .step-line { flex: 1; height: 2px; background: var(--gray-2); margin: 0 12px; min-width: 40px; }
+    .step-line.done { background: var(--green); }
+
+    /* Beneficiary select */
+    .ben-list { display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; }
+    .ben-option { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1.5px solid var(--gray-2); border-radius: var(--radius); cursor: pointer; transition: all 0.15s; }
+    .ben-option:hover { border-color: var(--green); background: var(--green-light); }
+    .ben-option.selected { border-color: var(--green); background: var(--green-light); }
+    .ben-avatar { width: 38px; height: 38px; border-radius: 10px; background: var(--green-light); color: var(--green); display: flex; align-items: center; justify-content: center; font-weight: 600; font-size: 15px; flex-shrink: 0; }
+    .ben-info { flex: 1; }
+    .ben-name { font-size: 14px; font-weight: 500; color: var(--text); }
+    .ben-acct { font-size: 12px; color: var(--gray-3); margin-top: 2px; }
+    .ben-check { width: 20px; height: 20px; border-radius: 50%; border: 2px solid var(--gray-2); flex-shrink: 0; display: flex; align-items: center; justify-content: center; }
+    .ben-option.selected .ben-check { background: var(--green); border-color: var(--green); color: white; font-size: 12px; }
+
+    /* Fee summary */
+    .fee-box { background: var(--gray-1); border-radius: var(--radius); padding: 16px; }
+    .fee-row { display: flex; justify-content: space-between; font-size: 13px; color: var(--gray-4); padding: 4px 0; }
+    .fee-row.total { font-size: 15px; font-weight: 600; color: var(--text); border-top: 1px solid var(--gray-2); padding-top: 10px; margin-top: 6px; }
+
+    /* Receipt overlay */
+    #receipt-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 600; display: none; align-items: center; justify-content: center; padding: 20px; }
+    #receipt-overlay.open { display: flex; }
+    .receipt-card { background: white; border-radius: var(--radius-lg); padding: 36px 32px; max-width: 400px; width: 100%; text-align: center; animation: slideUp 0.3s ease; }
+    .receipt-icon { width: 64px; height: 64px; border-radius: 50%; background: var(--green-light); color: var(--green); font-size: 28px; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; }
+    .receipt-title { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+    .receipt-amount { font-size: 32px; font-weight: 700; color: var(--green); margin: 12px 0; }
+    .receipt-detail { font-size: 13px; color: var(--gray-4); line-height: 1.8; }
+    .receipt-ref { background: var(--gray-1); border-radius: 8px; padding: 10px 14px; font-size: 12px; color: var(--gray-4); margin: 16px 0; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <div class="app-wrapper">
+    <aside class="sidebar">
+      <div class="sidebar-logo"><div class="sidebar-logo-icon">S</div><span class="sidebar-logo-name">SwiftSend</span></div>
+      <nav class="sidebar-nav">
+        <a href="dashboard.html" class="nav-item">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard
+        </a>
+        <a href="transfer.html" class="nav-item active">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>New Transfer
+        </a>
+        <a href="beneficiaries.html" class="nav-item">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Beneficiaries
+        </a>
+        <a href="history.html" class="nav-item">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>History
+        </a>
+      </nav>
+      <div class="sidebar-footer">
+        <div class="user-card"><div class="user-avatar" id="sidebar-avatar">U</div><div class="user-info"><div class="user-name" id="sidebar-name">User</div><div class="user-email" id="sidebar-email"></div></div></div>
+        <button onclick="logout()" class="btn btn-secondary btn-full btn-sm mt-8" style="justify-content:flex-start;gap:8px;">
+          <svg width="15" height="15" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>Sign out
+        </button>
+      </div>
+    </aside>
+
+    <main class="main-content fade-in">
+      <div class="page-header">
+        <div class="page-title">New Transfer</div>
+        <div class="page-subtitle">Send money from your card to any bank account</div>
+      </div>
+
+      <!-- Steps -->
+      <div class="steps" id="steps-bar">
+        <div class="step active" id="step-1"><div class="step-num">1</div><div class="step-label">Amount & Recipient</div></div>
+        <div class="step-line" id="line-1"></div>
+        <div class="step" id="step-2"><div class="step-num">2</div><div class="step-label">Review & Pay</div></div>
+        <div class="step-line" id="line-2"></div>
+        <div class="step" id="step-3"><div class="step-num">3</div><div class="step-label">Done</div></div>
+      </div>
+
+      <div class="transfer-layout">
+        <!-- Left: Form -->
+        <div>
+          <!-- Step 1: Amount + Beneficiary -->
+          <div id="panel-1">
+            <div class="card" style="margin-bottom:20px;">
+              <div class="card-title">Transfer Amount</div>
+              <div class="card-subtitle">Minimum transfer: ₦1,000</div>
+              <div class="mt-16">
+                <div class="form-group">
+                  <label class="form-label">Amount (₦)</label>
+                  <input type="number" class="form-input" id="amount" placeholder="e.g. 5000" min="1000" oninput="updateFee()" />
+                </div>
+                <div class="alert alert-info mt-8" style="margin-top:12px;margin-bottom:0;">
+                  <span>ℹ️</span>
+                  <span>Minimum transfer is ₦1,000. Your card will be charged the transfer amount + fees.</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="flex-between mb-16">
+                <div>
+                  <div class="card-title">Select Recipient</div>
+                  <div class="card-subtitle">Choose a saved beneficiary</div>
+                </div>
+                <a href="beneficiaries.html" class="btn btn-outline btn-sm">+ Add New</a>
+              </div>
+              <div id="ben-list" class="ben-list"></div>
+              <div id="ben-empty" style="display:none;" class="empty-state" style="padding:24px;">
+                <p style="font-size:14px;color:var(--gray-3);">No saved beneficiaries yet.<br><a href="beneficiaries.html" style="color:var(--green);">Add one now →</a></p>
+              </div>
+            </div>
+
+            <button onclick="goToReview()" class="btn btn-primary btn-full mt-16" id="next-btn" style="margin-top:20px;" disabled>
+              Continue to Review →
+            </button>
+          </div>
+
+          <!-- Step 2: Review -->
+          <div id="panel-2" style="display:none;">
+            <div class="card">
+              <div class="card-title">Review Transfer</div>
+              <div class="card-subtitle">Please confirm before paying</div>
+              <div class="mt-16" id="review-content"></div>
+              <div class="divider"></div>
+              <div class="alert alert-warn">
+                <span>⚠️</span>
+                <span>Your card will be charged and funds sent to the selected bank account. This action cannot be reversed.</span>
+              </div>
+              <div style="display:flex;gap:12px;margin-top:16px;">
+                <button onclick="backToStep1()" class="btn btn-secondary" style="flex:1;">← Back</button>
+                <button onclick="payNow()" class="btn btn-primary" style="flex:2;" id="pay-btn">Pay with Card</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Fee Summary -->
+        <div class="card" style="position:sticky;top:24px;" id="fee-summary">
+          <div class="card-title">Fee Breakdown</div>
+          <div class="card-subtitle mb-16" style="margin-bottom:16px;">What you'll pay</div>
+          <div class="fee-box">
+            <div class="fee-row"><span>Transfer amount</span><span id="fee-amount">₦0.00</span></div>
+            <div class="fee-row"><span>SwiftSend fee</span><span id="fee-swift">₦0.00</span></div>
+            <div class="fee-row"><span>Paystack fee</span><span id="fee-paystack">₦0.00</span></div>
+            <div class="fee-row total"><span>Total charged</span><span id="fee-total">₦0.00</span></div>
+          </div>
+          <div class="mt-16" style="font-size:12px;color:var(--gray-3);line-height:1.7;">
+            <strong style="color:var(--text);">SwiftSend fees:</strong><br>
+            ₦1,000–₦5,000 → ₦10<br>
+            ₦5,001–₦10,000 → ₦20<br>
+            ₦10,001+ → ₦50
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Mobile nav -->
+  <nav class="mobile-nav"><div class="mobile-nav-inner">
+    <a href="dashboard.html" class="mobile-nav-item"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Home</a>
+    <a href="transfer.html" class="mobile-nav-item active"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg>Transfer</a>
+    <a href="beneficiaries.html" class="mobile-nav-item"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>Saved</a>
+    <a href="history.html" class="mobile-nav-item"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>History</a>
+  </div></nav>
+
+  <!-- Receipt overlay -->
+  <div id="receipt-overlay">
+    <div class="receipt-card">
+      <div class="receipt-icon">✅</div>
+      <div class="receipt-title">Transfer Initiated!</div>
+      <div style="font-size:13px;color:var(--gray-4);">Amount sent to</div>
+      <div class="receipt-amount" id="r-amount">₦0.00</div>
+      <div class="receipt-detail">
+        <strong id="r-name"></strong><br>
+        <span id="r-bank"></span> • <span id="r-acct"></span>
+      </div>
+      <div class="receipt-ref" id="r-ref">REF: —</div>
+      <div style="font-size:12px;color:var(--gray-3);margin-bottom:20px;">The bank transfer is being processed. It typically arrives within minutes.</div>
+      <div style="display:flex;gap:12px;">
+        <button onclick="closeReceipt()" class="btn btn-secondary" style="flex:1;">Close</button>
+        <a href="history.html" class="btn btn-primary" style="flex:1;">View History</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+  <script src="js/utils.js"></script>
+  <script>
+    const user = requireAuth();
+    let selectedBen = null;
+
+    if (user) {
+      initSidebar();
+      renderBenList();
+    }
+
+    function renderBenList() {
+      const bens = getBeneficiaries();
+      const list = document.getElementById('ben-list');
+      const empty = document.getElementById('ben-empty');
+      if (!bens.length) { list.style.display = 'none'; empty.style.display = 'block'; return; }
+      list.innerHTML = bens.map((b, i) => `
+        <div class="ben-option" id="ben-opt-${i}" onclick="selectBen(${i})">
+          <div class="ben-avatar">${b.accountName[0]}</div>
+          <div class="ben-info">
+            <div class="ben-name">${b.accountName}</div>
+            <div class="ben-acct">${b.bankName} • ${b.accountNumber}</div>
+            <div style="margin-top:4px"><span class="chip ${b.type==='microfinance'?'chip-pending':'chip-success'}" style="font-size:10px;padding:2px 8px;">${b.type}</span></div>
+          </div>
+          <div class="ben-check" id="ben-check-${i}"></div>
+        </div>`).join('');
+    }
+
+    function selectBen(i) {
+      document.querySelectorAll('.ben-option').forEach((el, j) => {
+        el.classList.toggle('selected', j === i);
+        document.getElementById('ben-check-' + j).textContent = j === i ? '✓' : '';
+      });
+      selectedBen = getBeneficiaries()[i];
+      checkNextBtn();
+    }
+
+    function updateFee() {
+      const amt = parseFloat(document.getElementById('amount').value) || 0;
+      const swift = calcFee(amt);
+      const ps = calcPaystackFee(amt);
+      const total = amt + swift + ps;
+      document.getElementById('fee-amount').textContent = formatNaira(amt);
+      document.getElementById('fee-swift').textContent = formatNaira(swift);
+      document.getElementById('fee-paystack').textContent = formatNaira(ps);
+      document.getElementById('fee-total').textContent = formatNaira(total);
+      checkNextBtn();
+    }
+
+    function checkNextBtn() {
+      const amt = parseFloat(document.getElementById('amount').value) || 0;
+      document.getElementById('next-btn').disabled = !(amt >= 1000 && selectedBen);
+    }
+
+    function goToReview() {
+      const amt = parseFloat(document.getElementById('amount').value);
+      const swift = calcFee(amt);
+      const ps = calcPaystackFee(amt);
+      const total = amt + swift + ps;
+      document.getElementById('panel-1').style.display = 'none';
+      document.getElementById('panel-2').style.display = 'block';
+      document.getElementById('step-1').classList.add('done'); document.getElementById('step-1').classList.remove('active');
+      document.getElementById('line-1').classList.add('done');
+      document.getElementById('step-2').classList.add('active');
+      document.getElementById('review-content').innerHTML = `
+        <div class="fee-box" style="margin-bottom:16px;">
+          <div class="fee-row"><span>Recipient</span><span style="font-weight:600;">${selectedBen.accountName}</span></div>
+          <div class="fee-row"><span>Bank</span><span>${selectedBen.bankName}</span></div>
+          <div class="fee-row"><span>Account No.</span><span>${selectedBen.accountNumber}</span></div>
+          <div class="fee-row"><span>Transfer Amount</span><span>${formatNaira(amt)}</span></div>
+          <div class="fee-row"><span>SwiftSend Fee</span><span>${formatNaira(swift)}</span></div>
+          <div class="fee-row"><span>Paystack Fee</span><span>${formatNaira(ps)}</span></div>
+          <div class="fee-row total"><span>Total Charged to Card</span><span style="color:var(--green);">${formatNaira(total)}</span></div>
+        </div>`;
+    }
+
+    function backToStep1() {
+      document.getElementById('panel-1').style.display = 'block';
+      document.getElementById('panel-2').style.display = 'none';
+      document.getElementById('step-1').classList.remove('done'); document.getElementById('step-1').classList.add('active');
+      document.getElementById('line-1').classList.remove('done');
+      document.getElementById('step-2').classList.remove('active');
+    }
+
+    function payNow() {
+      const amt = parseFloat(document.getElementById('amount').value);
+      const swift = calcFee(amt);
+      const ps = calcPaystackFee(amt);
+      const totalKobo = Math.round((amt + swift + ps) * 100);
+      const ref = 'SS' + Date.now();
+
+      const handler = PaystackPop.setup({
+        key: PAYSTACK_PUBLIC_KEY,
+        email: user.email,
+        amount: totalKobo,
+        currency: 'NGN',
+        ref: ref,
+        metadata: {
+          recipient_name: selectedBen.accountName,
+          recipient_bank: selectedBen.bankName,
+          recipient_account: selectedBen.accountNumber,
+          transfer_amount: amt
+        },
+        callback: function(response) { onPaymentSuccess(response, amt, ref); },
+        onClose: function() { showToast('Payment cancelled', 'error'); }
+      });
+      handler.openIframe();
+    }
+
+    function onPaymentSuccess(response, amt, ref) {
+      // Save transaction
+      const tx = addTransaction({
+        amount: amt,
+        recipientName: selectedBen.accountName,
+        bankName: selectedBen.bankName,
+        accountNumber: selectedBen.accountNumber,
+        reference: response.reference || ref,
+        status: 'pending' // will be updated by webhook in production
+      });
+
+      // Update step indicator
+      document.getElementById('step-2').classList.add('done'); document.getElementById('step-2').classList.remove('active');
+      document.getElementById('line-2').classList.add('done');
+      document.getElementById('step-3').classList.add('active');
+
+      // Show receipt
+      document.getElementById('r-amount').textContent = formatNaira(amt);
+      document.getElementById('r-name').textContent = selectedBen.accountName;
+      document.getElementById('r-bank').textContent = selectedBen.bankName;
+      document.getElementById('r-acct').textContent = selectedBen.accountNumber;
+      document.getElementById('r-ref').textContent = 'REF: ' + (response.reference || ref);
+      document.getElementById('receipt-overlay').classList.add('open');
+    }
+
+    function closeReceipt() {
+      document.getElementById('receipt-overlay').classList.remove('open');
+      window.location.href = 'dashboard.html';
+    }
+  </script>
+</body>
+</html>
